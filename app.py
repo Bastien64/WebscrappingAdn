@@ -31,7 +31,6 @@ def scrape_emails(urls, lieu):
     unique_results = {}
     for url in urls:
         try:
-            # Vérifier si le lieu est présent sur la page
             if not contains_location(url, lieu):
                 continue
 
@@ -58,31 +57,30 @@ def scrape_emails(urls, lieu):
 
 def scrape_Qwant_search_results(query, lieu):
     search_results = []
-    driver = webdriver.Chrome()  # Assurez-vous d'avoir ChromeDriver installé et configuré sur votre système
-    # Ouvrir la page Qwant
+    driver = webdriver.Chrome()  
+
     driver.get(f"https://www.qwant.com/?l=fr&q={query} {lieu}") 
     try:
-        # Attendre que le bouton "Plus de résultats" soit présent et cliquable
+
         button = driver.find_element(By.XPATH, "//button[contains(text(),'Plus de résultats')]")
-        # Cliquer sur le bouton
+
         button.click()
         time.sleep(5)
         button.click()
         time.sleep(5)
         button.click()
-        # Pause pour laisser le temps aux résultats supplémentaires de se charger
-        time.sleep(35)  # Vous pouvez ajuster cette valeur selon vos besoins
-        # Récupérer le contenu de la page après avoir cliqué sur le bouton
+        time.sleep(5)
+        button.click()
+        time.sleep(35)  
+
         page_content = driver.page_source
         soup = BeautifulSoup(page_content, 'html.parser')
-        # Chercher les liens de résultats de recherche avec la classe "result__link"
         search_result_links = soup.find_all('a', class_='external')
-        for link in search_result_links[:10000]:  # Limiter à 50 résultats
-            url = link['href']  # Extraire l'URL du lien
+        for link in search_result_links[:10000]:  
+            url = link['href']  
             search_results.append(url)
 
     finally:
-        # Fermer le pilote Selenium
         driver.quit()
     return search_results
 
@@ -104,7 +102,7 @@ def index():
 def download_csv():
     if request.method == 'POST':
         csv_data = request.form['csv_data']
-        results = eval(csv_data)  # Convertir les données CSV en liste de dictionnaires
+        results = parse_csv_data(csv_data)
         csv_content = generate_csv(results)
         return Response(
             csv_content,
@@ -112,13 +110,20 @@ def download_csv():
             headers={"Content-disposition":
                      "attachment; filename=results.csv"})
 
+def parse_csv_data(csv_data):
+    results = []
+    reader = csv.DictReader(csv_data.splitlines())
+    for row in reader:
+        results.append(row)
+    return results
+
 
 def generate_csv(results):
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["Nom du site", "Adresse web", "Adresse Email"])
     for result in results:
-        writer.writerow([result["site_name"], result["site_url"], result["email"]])
+        writer.writerow([result.get("site_name", ""), result.get("site_url", ""), result.get("email", "")])
     csv_data = output.getvalue()
     output.close()
     return csv_data
