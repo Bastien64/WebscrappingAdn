@@ -1,57 +1,128 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, Response
+import csv
+import io
 import requests
 from bs4 import BeautifulSoup
 import re
+import time  # Ajoutez 
+from urllib.parse import urlparse
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 
 app = Flask(__name__)
 
 def get_site_name(url):
-    # Utilisation d'une expression régulière pour extraire le nom du site
     match = re.search(r'www\.(.*?)\.(com|fr)', url)
     if match:
         return match.group(1)
     else:
         return "Nom du site non trouvé"
 
-def scrape_emails(urls):
-    all_results = []
-    for url in urls:
-        response = requests.get(url)
-        print("HTTP Response for", url, ":", response.status_code)  # Ajout d'un message d'impression
-        soup = BeautifulSoup(response.text, 'html.parser')
-        emails = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', response.text)
-        print("Emails trouvées pour", url, ":", emails)  # Ajout d'un message d'impression
-        result = {
-            "site_name": get_site_name(url),  # Remplacez "Nom du site" par le nom réel du site
-            "site_url": url,
-            "email": ", ".join(emails) if emails else "Aucune adresse e-mail trouvée"
-        }
-        all_results.append(result)
-    return all_results
-
-def scrape_google_search_results(query):
-    search_results = []
-    url = f"https://www.google.com/search?q={query}"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.55 Safari/537.36"
-    }
-    response = requests.get(url, headers=headers)
+def contains_location(url, lieu):
+    response = requests.get(url, verify=False, timeout=2)
     if response.status_code == 200:
-        soup = BeautifulSoup(response.text, 'html.parser')
-        search_results_divs = soup.find_all('div', class_='tF2Cxc')
-        for div in search_results_divs:
-            link = div.find('a')['href']
-            search_results.append(link)
+        return lieu.lower() in response.text.lower()
+    return False
+
+def scrape_emails(urls, lieu):
+    unique_results = {}
+    for url in urls:
+        try:
+            # Vérifier si le lieu est présent sur la page
+            if not contains_location(url, lieu):
+                continue
+
+            response = requests.get(url, verify=False, timeout=2)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            # Recherche des adresses e-mail
+            emails = re.findall(r'\b[A-Za-z0-9._%+-]+(?:\[at\]|@)[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', response.text)
+            unique_emails = list(set(emails))
+            # Filtrer les extensions d'images
+            filtered_emails = [email for email in unique_emails if not (email.endswith('.png') or email.endswith('.webp'))]
+            site_name = get_site_name(url)
+            if site_name not in unique_results:
+                unique_results[site_name] = {
+                    "site_name": site_name,
+                    "site_url": url,
+                    "email": ", ".join(filtered_emails) if filtered_emails else "Aucune adresse e-mail trouvée"
+                }
+        except requests.exceptions.RequestException as e:
+            print("Une erreur s'est produite lors de la connexion à", url, ":", e)
+
+    return list(unique_results.values())
+
+
+
+def scrape_Qwant_search_results(query, lieu):
+    search_results = []
+    driver = webdriver.Chrome()  # Assurez-vous d'avoir ChromeDriver installé et configuré sur votre système
+    # Ouvrir la page Qwant
+    driver.get(f"https://www.qwant.com/?l=fr&q={query} {lieu}") 
+    try:
+        # Attendre que le bouton "Plus de résultats" soit présent et cliquable
+        button = driver.find_element(By.XPATH, "//button[contains(text(),'Plus de résultats')]")
+        # Cliquer sur le bouton
+        button.click()
+        time.sleep(5)
+        button.click()
+        time.sleep(5)
+        button.click()
+        # Pause pour laisser le temps aux résultats supplémentaires de se charger
+        time.sleep(35)  # Vous pouvez ajuster cette valeur selon vos besoins
+        # Récupérer le contenu de la page après avoir cliqué sur le bouton
+        page_content = driver.page_source
+        soup = BeautifulSoup(page_content, 'html.parser')
+        # Chercher les liens de résultats de recherche avec la classe "result__link"
+        search_result_links = soup.find_all('a', class_='external')
+        for link in search_result_links[:10000]:  # Limiter à 50 résultats
+            url = link['href']  # Extraire l'URL du lien
+            search_results.append(url)
+
+    finally:
+        # Fermer le pilote Selenium
+        driver.quit()
     return search_results
 
-@app.route('/')
+
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    # Liste d'URLs à scraper (remplacée par les résultats de recherche Google)
-    query = "agence web bidart"
-    search_results = scrape_google_search_results(query)
-    all_results = scrape_emails(search_results)
-    print("Tous les résultats trouvés:", all_results)
-    return render_template('index.html', results=all_results)
+    if request.method == 'POST':
+        query = request.form['query']
+        lieu = request.form['lieu']
+        search_results = scrape_Qwant_search_results(query, lieu)
+        all_results = scrape_emails(search_results, lieu)
+        print("Tous les résultats trouvés:", all_results)
+        return render_template('index.html', results=all_results)
+    else:
+        return render_template('index.html', results=[])
+
+
+@app.route('/download_csv', methods=['POST'])
+def download_csv():
+    if request.method == 'POST':
+        csv_data = request.form['csv_data']
+        results = eval(csv_data)  # Convertir les données CSV en liste de dictionnaires
+        csv_content = generate_csv(results)
+        return Response(
+            csv_content,
+            mimetype="text/csv",
+            headers={"Content-disposition":
+                     "attachment; filename=results.csv"})
+
+
+def generate_csv(results):
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Nom du site", "Adresse web", "Adresse Email"])
+    for result in results:
+        writer.writerow([result["site_name"], result["site_url"], result["email"]])
+    csv_data = output.getvalue()
+    output.close()
+    return csv_data
+
 
 if __name__ == '__main__':
     app.run(debug=True)

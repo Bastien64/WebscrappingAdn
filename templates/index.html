@@ -21,6 +21,20 @@
 </head>
 <body>
     <h1>Résultats de la recherche</h1>
+    <form action="/" method="post">
+        <label for="query">Recherche:</label>
+        <input type="text" id="query" name="query"><br><br>
+        <label for="lieu">Lieu:</label>
+        <input type="text" id="lieu" name="lieu"><br><br>
+        <input type="submit" value="Rechercher">
+    </form>
+    
+    {% if results %}
+    <form action="/download_csv" method="post">
+        <input type="hidden" name="csv_data" value="{{ csv_data }}">
+        <input type="submit" value="Télécharger en CSV">
+    </form>
+    
     <table>
         <thead>
             <tr>
@@ -39,5 +53,6 @@
             {% endfor %}
         </tbody>
     </table>
+    {% endif %}
 </body>
 </html>
