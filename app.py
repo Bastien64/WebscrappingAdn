@@ -10,7 +10,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-
+from urllib.parse import urlparse, urlunparse
 
 app = Flask(__name__)
 
@@ -21,23 +21,20 @@ def get_site_name(url):
     else:
         return "Nom du site non trouvé"
 
-def contains_location(url, lieu):
-    response = requests.get(url, verify=False, timeout=2)
-    if response.status_code == 200:
-        return lieu.lower() in response.text.lower()
-    return False
+
 
 def scrape_emails(urls, lieu):
     unique_results = {}
     for url in urls:
         try:
-            if not contains_location(url, lieu):
-                continue
-
-            response = requests.get(url, verify=False, timeout=2)
-            soup = BeautifulSoup(response.text, 'html.parser')
-            # Recherche des adresses e-mail
-            emails = re.findall(r'\b[A-Za-z0-9._%+-]+(?:\[at\]|@)[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', response.text)
+            # Construire l'URL des mentions légales
+            parsed_url = urlparse(url)
+            base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+            legal_url = f"{base_url}/mentions-legales"
+            response = requests.get(legal_url, verify=False, timeout=2)
+            # Recherche des adresses e-mail avec Beautiful Soup
+            soup = BeautifulSoup(response.content, 'html.parser')
+            emails = extract_emails_from_soup(soup)
             unique_emails = list(set(emails))
             # Filtrer les extensions d'images
             filtered_emails = [email for email in unique_emails if not (email.endswith('.png') or email.endswith('.webp'))]
@@ -45,14 +42,31 @@ def scrape_emails(urls, lieu):
             if site_name not in unique_results:
                 unique_results[site_name] = {
                     "site_name": site_name,
-                    "site_url": url,
+                    "site_url": legal_url,
                     "email": ", ".join(filtered_emails) if filtered_emails else "Aucune adresse e-mail trouvée"
                 }
         except requests.exceptions.RequestException as e:
-            print("Une erreur s'est produite lors de la connexion à", url, ":", e)
+            print("Une erreur s'est produite lors de la connexion à", legal_url, ":", e)
 
     return list(unique_results.values())
 
+
+def extract_emails_from_soup(soup):
+    # Utiliser une expression régulière pour rechercher les adresses e-mail
+    email_pattern = re.compile(r'[\w\.-]+@[a-zA-Z0-9\.-]+\.[a-zA-Z]+')
+    email_list = []
+    # Rechercher les balises contenant du texte
+    for tag in soup.find_all(text=True):
+        # Rechercher les adresses e-mail dans le texte
+        matches = email_pattern.findall(tag)
+        # Ajouter les adresses trouvées à la liste
+        email_list.extend(matches)
+        # Rechercher également "[ at]" et "(at)" dans le texte et les remplacer par "@"
+        matches = re.findall(r'[\w\.-]+ ?\[(?:\s)?at(?:\s)?\] ?[\w\.-]+|[\w\.-]+ ?\((?:\s)?at(?:\s)?\) ?[\w\.-]+', tag)
+        for match in matches:
+            match = match.replace('[ at]', '@').replace('(at)', '@')
+            email_list.append(match)
+    return email_list
 
 
 def scrape_Qwant_search_results(query, lieu):
