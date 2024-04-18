@@ -27,16 +27,16 @@ def scrape_emails(urls, lieu):
     unique_results = {}
     for url in urls:
         try:
-            # Construire l'URL des mentions légales
+           
             parsed_url = urlparse(url)
             base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
             legal_url = f"{base_url}/mentions-legales"
             response = requests.get(legal_url, verify=False, timeout=2)
-            # Recherche des adresses e-mail avec Beautiful Soup
+            
             soup = BeautifulSoup(response.content, 'html.parser')
             emails = extract_emails_from_soup(soup)
             unique_emails = list(set(emails))
-            # Filtrer les extensions d'images
+            
             filtered_emails = [email for email in unique_emails if not (email.endswith('.png') or email.endswith('.webp'))]
             site_name = get_site_name(url)
             if site_name not in unique_results:
@@ -52,16 +52,16 @@ def scrape_emails(urls, lieu):
 
 
 def extract_emails_from_soup(soup):
-    # Utiliser une expression régulière pour rechercher les adresses e-mail
+    
     email_pattern = re.compile(r'[\w\.-]+@[a-zA-Z0-9\.-]+\.[a-zA-Z]+')
     email_list = []
-    # Rechercher les balises contenant du texte
+    
     for tag in soup.find_all(text=True):
-        # Rechercher les adresses e-mail dans le texte
+      
         matches = email_pattern.findall(tag)
-        # Ajouter les adresses trouvées à la liste
+       
         email_list.extend(matches)
-        # Rechercher également "[ at]" et "(at)" dans le texte et les remplacer par "@"
+        
         matches = re.findall(r'[\w\.-]+ ?\[(?:\s)?at(?:\s)?\] ?[\w\.-]+|[\w\.-]+ ?\((?:\s)?at(?:\s)?\) ?[\w\.-]+', tag)
         for match in matches:
             match = match.replace('[ at]', '@').replace('(at)', '@')
