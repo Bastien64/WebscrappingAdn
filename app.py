@@ -20,16 +20,40 @@ def get_site_name(url):
         return match.group(1)
     else:
         return "Nom du site non trouvé"
+    
+    
+#GESTION DES SITES A EXCLURE
 
+def read_excluded_sites(filename):
+    with open(filename, 'r') as file:
+        return [line.strip() for line in file.readlines()]
+    
+def add_site_to_exclude_list(site_url):
+    with open("siteaexclure.txt", "a") as file:
+        file.write(site_url + "\n")
 
+@app.route('/add_sites', methods=['POST'])
+def add_site():
+    if request.method == 'POST':
+        site_url = request.json.get('site_url')
+        add_site_to_exclude_list(site_url)
+        return "Site ajouté avec succès !", 200
+    else:
+        return "Erreur : Méthode non autorisée", 405
+
+excluded_sites = read_excluded_sites("siteaexclure.txt")
 
 def scrape_emails(urls, lieu):
     unique_results = {}
     for url in urls:
         try:
-           
             parsed_url = urlparse(url)
             base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+            
+            # Exclure les sites présents dans siteaexclure.txt
+            if base_url in excluded_sites:
+                continue
+            
             legal_url = f"{base_url}/mentions-legales"
             response = requests.get(legal_url, verify=False, timeout=2)
             
@@ -79,13 +103,13 @@ def scrape_Qwant_search_results(query, lieu):
         button = driver.find_element(By.XPATH, "//button[contains(text(),'Plus de résultats')]")
 
         button.click()
-        time.sleep(5)
+        time.sleep(2)
         button.click()
-        time.sleep(5)
+        time.sleep(2)
         button.click()
-        time.sleep(5)
+        time.sleep(2)
         button.click()
-        time.sleep(35)  
+        time.sleep(2)  
 
         page_content = driver.page_source
         soup = BeautifulSoup(page_content, 'html.parser')
@@ -110,37 +134,6 @@ def index():
         return render_template('index.html', results=all_results)
     else:
         return render_template('index.html', results=[])
-
-
-@app.route('/download_csv', methods=['POST'])
-def download_csv():
-    if request.method == 'POST':
-        csv_data = request.form['csv_data']
-        results = parse_csv_data(csv_data)
-        csv_content = generate_csv(results)
-        return Response(
-            csv_content,
-            mimetype="text/csv",
-            headers={"Content-disposition":
-                     "attachment; filename=results.csv"})
-
-def parse_csv_data(csv_data):
-    results = []
-    reader = csv.DictReader(csv_data.splitlines())
-    for row in reader:
-        results.append(row)
-    return results
-
-
-def generate_csv(results):
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["Nom du site", "Adresse web", "Adresse Email"])
-    for result in results:
-        writer.writerow([result.get("site_name", ""), result.get("site_url", ""), result.get("email", "")])
-    csv_data = output.getvalue()
-    output.close()
-    return csv_data
 
 
 if __name__ == '__main__':

@@ -17,6 +17,9 @@
         th {
             background-color: #f2f2f2;
         }
+        .highlight {
+            background-color: red;
+        }
     </style>
 </head>
 <body>
@@ -30,10 +33,6 @@
     </form>
     
     {% if results %}
-    <form action="/download_csv" method="post">
-        <input type="hidden" name="csv_data" value="{{ csv_data }}">
-        <input type="submit" value="Télécharger en CSV">
-    </form>
     
     <table>
         <thead>
@@ -41,6 +40,7 @@
                 <th>Nom du site</th>
                 <th>Adresse web</th>
                 <th>Adresse Email</th>
+                <th>Ajouter site</th>
             </tr>
         </thead>
         <tbody>
@@ -49,10 +49,32 @@
                 <td>{{ result.site_name }}</td>
                 <td>{{ result.site_url }}</td>
                 <td>{{ result.email }}</td>
+                <td>
+                    <button onclick="addSite('{{ result.site_url }}', this)">Ajouter site à la blacklist de recherche</button>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% endif %}
+
+    <script>
+        function addSite(siteUrl, button) {
+            // Extraire l'URL de base
+            var baseUrl = new URL(siteUrl).origin;
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/add_sites", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    // Changer la couleur de fond de la ligne parente
+                    var row = button.parentNode.parentNode;
+                    row.classList.add("highlight");
+                    alert("Site ajouté avec succès !");
+                }
+            };
+            xhr.send(JSON.stringify({ site_url: baseUrl }));
+        }
+    </script>
 </body>
 </html>
