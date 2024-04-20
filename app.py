@@ -21,16 +21,19 @@ def get_site_name(url):
     else:
         return "Nom du site non trouvé"
     
-    
 #GESTION DES SITES A EXCLURE
 
-def read_excluded_sites(filename):
-    with open(filename, 'r') as file:
-        return [line.strip() for line in file.readlines()]
-    
+def read_excluded_sites(file_path):
+    with open(file_path, "r") as file:
+        return [line.strip() for line in file]
+
 def add_site_to_exclude_list(site_url):
-    with open("siteaexclure.txt", "a") as file:
-        file.write(site_url + "\n")
+    excluded_sites = read_excluded_sites("siteaexclure.txt")
+    if site_url not in excluded_sites:
+        with open("siteaexclure.txt", "a") as file:
+            file.write(site_url + "\n")
+    else:
+        print("Le site est déjà dans la liste d'exclusion.")
 
 @app.route('/add_sites', methods=['POST'])
 def add_site():
@@ -40,10 +43,15 @@ def add_site():
         return "Site ajouté avec succès !", 200
     else:
         return "Erreur : Méthode non autorisée", 405
-excluded_sites = read_excluded_sites("siteaexclure.txt")
+
+    
+
 
 
 #SCRAPING DES ADRESSES EMAILS
+
+excluded_sites = read_excluded_sites("siteaexclure.txt")
+
 def scrape_emails(urls, lieu):
     unique_results = {}
     for url in urls:
