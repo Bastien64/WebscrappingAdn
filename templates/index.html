@@ -24,16 +24,18 @@
 </head>
 <body>
     <h1>Résultats de la recherche</h1>
-    <form action="/" method="post">
-        <label for="query">Recherche:</label>
-        <input type="text" id="query" name="query"><br><br>
-        <label for="lieu">Lieu:</label>
-        <input type="text" id="lieu" name="lieu"><br><br>
-        <input type="submit" value="Rechercher">
+    <form method="POST">
+        <label for="query">Recherche 1 :</label>
+        <input type="text" name="query" id="query" required>
+        <label for="query2">Recherche 2 :</label>
+        <input type="text" name="query2" id="query2" required>
+        <label for="lieu">Lieu :</label>
+        <input type="text" name="lieu" id="lieu" required>
+        <button type="submit">Rechercher</button>
     </form>
     
-    {% if results %}
     
+    {% if results %}
     <table>
         <thead>
             <tr>
@@ -44,19 +46,20 @@
             </tr>
         </thead>
         <tbody>
-            {% for result in results %}
+            {% for result in results['unique_results'] %}
             <tr>
-                <td>{{ result.site_name }}</td>
-                <td>{{ result.site_url }}</td>
-                <td>{{ result.email }}</td>
+                <td>{{ result[0][1] }}</td>  <!-- Accédez au nom du site -->
+                <td>{{ result[1][1] }}</td>  <!-- Accédez à l'URL du site -->
+                <td>{{ result[2][1] }}</td>  <!-- Accédez à l'email -->
                 <td>
-                    <button onclick="addSite('{{ result.site_url }}', this)">Ajouter site à la blacklist de recherche</button>
+                    <button onclick="addSite('{{ result[1][1] }}', this)">Ajouter site à la blacklist de recherche</button>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% endif %}
+    
 
     <script>
         function addSite(siteUrl, button) {

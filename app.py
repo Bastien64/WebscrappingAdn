@@ -40,9 +40,10 @@ def add_site():
         return "Site ajouté avec succès !", 200
     else:
         return "Erreur : Méthode non autorisée", 405
-
 excluded_sites = read_excluded_sites("siteaexclure.txt")
 
+
+#SCRAPING DES ADRESSES EMAILS
 def scrape_emails(urls, lieu):
     unique_results = {}
     for url in urls:
@@ -103,13 +104,13 @@ def scrape_Qwant_search_results(query, lieu):
         button = driver.find_element(By.XPATH, "//button[contains(text(),'Plus de résultats')]")
 
         button.click()
-        time.sleep(2)
+        time.sleep(1)
         button.click()
-        time.sleep(2)
+        time.sleep(1)
         button.click()
-        time.sleep(2)
+        time.sleep(1)
         button.click()
-        time.sleep(2)  
+        time.sleep(1)
 
         page_content = driver.page_source
         soup = BeautifulSoup(page_content, 'html.parser')
@@ -126,15 +127,34 @@ def scrape_Qwant_search_results(query, lieu):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        query = request.form['query']
+        query1 = request.form['query']
+        query2 = request.form['query2']  # Récupérer la deuxième requête
         lieu = request.form['lieu']
-        search_results = scrape_Qwant_search_results(query, lieu)
-        all_results = scrape_emails(search_results, lieu)
+        
+        # Effectuer la première recherche
+        search_results1 = scrape_Qwant_search_results(query1, lieu)
+        all_results1 = scrape_emails(search_results1, lieu)
+        
+        # Effectuer la deuxième recherche
+        search_results2 = scrape_Qwant_search_results(query2, lieu)
+        all_results2 = scrape_emails(search_results2, lieu)
+        
+        # Convertir les listes en ensembles pour supprimer les doublons
+        all_results1_set = set(tuple(result.items()) for result in all_results1)
+        all_results2_set = set(tuple(result.items()) for result in all_results2)
+        print("Résultats de la première recherche:", all_results1_set)
+        print("Résultats de la deuxième recherche:", all_results2_set)
+        # Comparer les résultats et supprimer les doublons
+        unique_results = all_results2_set.symmetric_difference(all_results1_set)
+        
+        all_results = {
+            "unique_results": unique_results
+        }
+        
         print("Tous les résultats trouvés:", all_results)
         return render_template('index.html', results=all_results)
     else:
-        return render_template('index.html', results=[])
-
+        return render_template('index.html', results={})
 
 if __name__ == '__main__':
     app.run(debug=True)
