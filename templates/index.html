@@ -3,11 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Résultats de la recherche</title>
+    <title>WebScrapping</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            text-align: center;
+            margin-top: 20px;
+        }
+        form {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        label {
+            margin: auto;
+            display: block;
+            width: 50%;
+            margin-bottom: 5px;
+        }
+        .center-button {
+    display: block; /* Pour que le bouton occupe toute la largeur disponible */
+    margin: 20px auto; /* Centre le bouton horizontalement avec une marge de 20px au-dessus et en dessous */
+    text-align: center; /* Centre le contenu du bouton horizontalement */
+    color: rgb(92, 17, 17);
+}
+        input[type="text"] {
+            width: 50%;
+            padding: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        button[type="submit"],
+        button[type="button"] {
+            margin: auto;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button[type="submit"]:hover,
+        button[type="button"]:hover {
+            background-color: #45a049;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
+            margin-top: 20px;
         }
         th, td {
             border: 1px solid #ddd;
@@ -18,23 +64,28 @@
             background-color: #f2f2f2;
         }
         .highlight {
-            background-color: red;
+            background-color: #ffeeee;
+        }
+        .center {
+
+            text-align: center;
         }
     </style>
 </head>
 <body>
     <h1>Résultats de la recherche</h1>
-    <form method="POST">
+    <form method="POST" class="center">
         <label for="query">Recherche 1 :</label>
-        <input type="text" name="query" id="query" required>
+        <input type="text" name="query" id="query" required><br>
         <label for="query2">Recherche 2 :</label>
-        <input type="text" name="query2" id="query2" required>
+        <input type="text" name="query2" id="query2" required><br>
         <label for="lieu">Lieu :</label>
-        <input type="text" name="lieu" id="lieu" required>
+        <input type="text" name="lieu" id="lieu" required><br>
         <button type="submit">Rechercher</button>
     </form>
-    
-    
+
+    <button onclick="downloadBlacklist()" class="center-button">Télécharger la liste des sites blacklistés</button>
+
     {% if results %}
     <table>
         <thead>
@@ -59,9 +110,11 @@
         </tbody>
     </table>
     {% endif %}
-    
 
     <script>
+        function downloadBlacklist() {
+            window.location.href = "/download_blacklist";
+        }
         function addSite(siteUrl, button) {
             // Extraire l'URL de base
             var baseUrl = new URL(siteUrl).origin;
